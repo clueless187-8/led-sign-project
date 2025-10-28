@@ -4,3 +4,4 @@ numpy==1.24.3
 pillow==10.0.0
 pyserial==3.5
 scipy==1.11.3
+speedtest-cli==2.1.3

@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bandwidth Monitor Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .current-speed {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .speed-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .speed-box.alert {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .speed-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .speed-value {
+            font-size: 3em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .speed-unit {
+            font-size: 1.2em;
+            opacity: 0.8;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .chart-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .time-selector {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .time-selector button {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .time-selector button:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .time-selector button.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .alerts-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .alert-item {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        .alert-item.critical {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+
+        .timestamp {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .last-updated {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .threshold-line {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Xfinity Bandwidth Monitor</h1>
+
+        <div class="loading" id="loading">Loading data...</div>
+
+        <div id="dashboard" style="display: none;">
+            <div class="current-speed" id="currentSpeed">
+                <!-- Speed boxes will be inserted here -->
+            </div>
+
+            <div class="status-card">
+                <h2 class="chart-title">24 Hour Statistics</h2>
+                <div class="stats-grid" id="statsGrid">
+                    <!-- Stats will be inserted here -->
+                </div>
+            </div>
+
+            <div class="time-selector">
+                <button class="active" onclick="changeTimeRange(24)">24 Hours</button>
+                <button onclick="changeTimeRange(48)">48 Hours</button>
+                <button onclick="changeTimeRange(168)">7 Days</button>
+            </div>
+
+            <div class="chart-container">
+                <h2 class="chart-title">Download Speed Over Time</h2>
+                <div class="threshold-line">⚠️ Alert threshold: 800 Mbps</div>
+                <canvas id="speedChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h2 class="chart-title">Hourly Average (Last 24 Hours)</h2>
+                <canvas id="hourlyChart"></canvas>
+            </div>
+
+            <div class="alerts-section">
+                <h2 class="chart-title">Recent Alerts (Below 800 Mbps)</h2>
+                <div id="alertsList">
+                    <!-- Alerts will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="last-updated" id="lastUpdated"></div>
+    </div>
+
+    <script>
+        let speedChart = null;
+        let hourlyChart = null;
+        let currentTimeRange = 24;
+
+        const THRESHOLD = 800;
+
+        async function fetchData(endpoint) {
+            const response = await fetch(`/api/${endpoint}`);
+            return await response.json();
+        }
+
+        function updateCurrentSpeed(data) {
+            const container = document.getElementById('currentSpeed');
+            const isAlert = data.download_mbps < THRESHOLD;
+
+            container.innerHTML = `
+                <div class="speed-box ${isAlert ? 'alert' : ''}">
+                    <div class="speed-label">Download</div>
+                    <div class="speed-value">${data.download_mbps}</div>
+                    <div class="speed-unit">Mbps</div>
+                    ${isAlert ? '<div style="margin-top: 10px; font-size: 1.2em;">⚠️ BELOW THRESHOLD</div>' : ''}
+                </div>
+                <div class="speed-box">
+                    <div class="speed-label">Upload</div>
+                    <div class="speed-value">${data.upload_mbps}</div>
+                    <div class="speed-unit">Mbps</div>
+                </div>
+                <div class="speed-box">
+                    <div class="speed-label">Ping</div>
+                    <div class="speed-value">${data.ping_ms}</div>
+                    <div class="speed-unit">ms</div>
+                </div>
+            `;
+        }
+
+        function updateStats(stats) {
+            const container = document.getElementById('statsGrid');
+            const s = stats['24h'];
+
+            if (!s) {
+                container.innerHTML = '<p>No data available</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-label">Total Tests</div>
+                    <div class="stat-value">${s.total_tests}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Average Download</div>
+                    <div class="stat-value">${s.avg_download} <span style="font-size: 0.6em;">Mbps</span></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Min Download</div>
+                    <div class="stat-value">${s.min_download} <span style="font-size: 0.6em;">Mbps</span></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max Download</div>
+                    <div class="stat-value">${s.max_download} <span style="font-size: 0.6em;">Mbps</span></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Alerts</div>
+                    <div class="stat-value" style="color: ${s.alerts_count > 0 ? '#dc3545' : '#28a745'}">${s.alerts_count}</div>
+                </div>
+            `;
+        }
+
+        function updateSpeedChart(data) {
+            const ctx = document.getElementById('speedChart').getContext('2d');
+
+            const labels = data.map(d => new Date(d.timestamp).toLocaleString());
+            const downloads = data.map(d => d.download_mbps);
+            const uploads = data.map(d => d.upload_mbps);
+
+            if (speedChart) {
+                speedChart.destroy();
+            }
+
+            speedChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Download (Mbps)',
+                            data: downloads,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Upload (Mbps)',
+                            data: uploads,
+                            borderColor: '#764ba2',
+                            backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        annotation: {
+                            annotations: {
+                                threshold: {
+                                    type: 'line',
+                                    yMin: THRESHOLD,
+                                    yMax: THRESHOLD,
+                                    borderColor: 'rgb(255, 99, 132)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        content: 'Threshold (800 Mbps)',
+                                        enabled: true
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Speed (Mbps)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateHourlyChart(data) {
+            const ctx = document.getElementById('hourlyChart').getContext('2d');
+
+            const labels = data.map(d => new Date(d.hour).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit'
+            }));
+            const avgDownloads = data.map(d => d.avg_download);
+            const minDownloads = data.map(d => d.min_download);
+            const maxDownloads = data.map(d => d.max_download);
+
+            if (hourlyChart) {
+                hourlyChart.destroy();
+            }
+
+            hourlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Average Download',
+                            data: avgDownloads,
+                            backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                            borderColor: '#667eea',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Speed (Mbps)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateAlerts(alerts) {
+            const container = document.getElementById('alertsList');
+
+            if (alerts.length === 0) {
+                container.innerHTML = '<p style="color: #28a745; font-weight: bold;">No alerts - all speeds above threshold!</p>';
+                return;
+            }
+
+            container.innerHTML = alerts.slice(0, 10).map(alert => {
+                const isCritical = alert.download_mbps < 500;
+                return `
+                    <div class="alert-item ${isCritical ? 'critical' : ''}">
+                        <div><strong>${isCritical ? '🔴' : '⚠️'} Download: ${alert.download_mbps} Mbps</strong> (Upload: ${alert.upload_mbps} Mbps, Ping: ${alert.ping_ms} ms)</div>
+                        <div class="timestamp">${new Date(alert.timestamp).toLocaleString()}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function changeTimeRange(hours) {
+            currentTimeRange = hours;
+
+            // Update button states
+            document.querySelectorAll('.time-selector button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Reload chart data
+            await loadDashboard();
+        }
+
+        async function loadDashboard() {
+            try {
+                const [current, history, stats, alerts, hourly] = await Promise.all([
+                    fetchData('current'),
+                    fetchData(`history?hours=${currentTimeRange}`),
+                    fetchData('stats'),
+                    fetchData('alerts'),
+                    fetchData('hourly_average')
+                ]);
+
+                updateCurrentSpeed(current);
+                updateStats(stats);
+                updateSpeedChart(history);
+                updateHourlyChart(hourly);
+                updateAlerts(alerts);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                document.getElementById('lastUpdated').textContent =
+                    `Last updated: ${new Date().toLocaleString()}`;
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                document.getElementById('loading').textContent =
+                    'Error loading data. Make sure the bandwidth monitor is running.';
+            }
+        }
+
+        // Load dashboard on page load
+        loadDashboard();
+
+        // Auto-refresh every 60 seconds
+        setInterval(loadDashboard, 60000);
+    </script>
+</body>
+</html>
