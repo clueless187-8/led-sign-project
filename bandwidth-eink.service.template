@@ -1,0 +1,19 @@
+[Unit]
+Description=Bandwidth Monitor E-Ink Display
+After=network-online.target bandwidth-monitor.service
+Wants=network-online.target
+Requires=bandwidth-monitor.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/led-sign-project
+Environment="EINK_DISPLAY_SIZE=2.13"
+ExecStart=/usr/bin/python3 /home/pi/led-sign-project/bandwidth_eink_display.py --size 2.13 --interval 300 --threshold 800
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
